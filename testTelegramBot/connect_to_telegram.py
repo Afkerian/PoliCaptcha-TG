@@ -1,20 +1,39 @@
 import datetime
-from telegram import Update
+from typing import Optional, Union
+
+import telegram
+from telegram import Update, Message, InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, InlineQueryResult, \
+    InputMessageContent, InputTextMessageContent
 from telegram.ext import (
     Updater,
     CommandHandler,
     MessageHandler,
+    DispatcherHandlerStop,
     Filters,
-    CallbackContext,
+    CallbackContext, MessageFilter, ConversationHandler, CallbackQueryHandler,
 )
 import yaml
 import logging
+from modified_filters import NewFilter
 
-#Para enviar los correos
 from enviocorreos import correo_bot
 
-
 logger = logging.getLogger(__name__)
+
+
+def callback_query_handler(update: Update, context: CallbackContext):
+    update.callback_query.message.reply_text("Has presionado el boton: "+update.callback_query.data)
+
+
+def inline_buttons_test(update: Update, context: CallbackContext):
+    msg = update.message.text.upper()
+    keyboard = [[InlineKeyboardButton(text="Text1", callback_data="but1"),InlineKeyboardButton(text="Text2", callback_data="but2")],
+                [InlineKeyboardButton(text="Text3", callback_data="but3"),InlineKeyboardButton(text="Text4", callback_data="but4")]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text('Please select the judge or select all for showing all', reply_markup=reply_markup)
+
+
 
 
 def handler_generate_link_command(update: Update, context: CallbackContext) -> None:
@@ -41,17 +60,23 @@ def handler_generate_link_command(update: Update, context: CallbackContext) -> N
         yaml.dump(dict_file, users)
 
 
+def start(update: Update, context: CallbackContext) -> None:
+  """
+  Handler que se encarga de solicitar información al usuario como su correo.
+  :param update: Update de la librería.
+  :param context: Contexto de la librería.
+  :return: None
+  """
 
-def hello(update: Update, context: CallbackContext) -> None:
+
+def save_email_users(update: Update, context: CallbackContext) -> None:
     """
-    Handler que se encarga de manejar el comando hello util para pruebas por el momento
+    Handler que se encarga de solicitar información al usuario como su correo
     :param update: Update de la librería.
     :param context:Contexto de la librería.
     :return: None
     """
-    update.message.reply_text(f'Hello {update.effective_user.first_name}')
-            # Cambio por consultar
-
+    print(update.message)
 
 
 def handler_new_member_joined(update: Update, context: CallbackContext) -> None:
@@ -65,24 +90,22 @@ def handler_new_member_joined(update: Update, context: CallbackContext) -> None:
     with open("users.yml") as users:
         n_service = yaml.safe_load(users)
         enabled_users = n_service["enabled_users"]
-    joined_member_id=update.message.new_chat_members[0].id
-    #print(joined_member_id)
-    print(check_new_chat_member_joined(enabled_users,joined_member_id ))
+    joined_member_id = update.message.new_chat_members[0].id
+
+    print(check_new_chat_member_joined(enabled_users, joined_member_id))
 
 
 def check_new_chat_member_joined(enabled_users: [int], joined_member_id: int) -> bool:
     """
     Verifica si un id de usuario pertenece a los usuarios permitidos.
-    :param enabled_users: Lista de usuarios permitidos que debería ser creado luego de que el proceso de
-                            solicitud se ha validado.
+    :param enabled_users: Lista de usuarios permitidos que debería ser creado luego de que el proceso de solicitud se ha validado.
     :param joined_member_id: ID del nuevo miembro que se ha unido al grupo y que debería pertenecer a la lista.
     :return: True si el usuario pertenece a la lista.
     """
-    print(enabled_users)
+
     flag = False
     for enabled_user in enabled_users:
         if joined_member_id == enabled_user:
-
             flag = True
 
     return flag
@@ -100,32 +123,35 @@ def create_one_user_invite_link(update: Update, context: CallbackContext, group_
     new_personal_link = update.message.bot.create_chat_invite_link(group_id, member_limit=1)
     return new_personal_link.invite_link
 
+
 def send_links_to_emails(update: Update, context: CallbackContext) -> None:
     """
+    Se encarga de enviar correos electrónicos con links unicos para cada estudiante
     :param update: Update de la librería.
     :param context: Contexto de la librería.
     :return: None
-    Se encarga de enviar correos electrónicos con links unicos para cada estudiante, no se pudo realizar la verificación
-    planeada inicialmente, pues no se puede acceder a los numeros de los miembros del grupo mediante el bot y ademas, no
-    se tiene en la base de datos la información de los IDs de lso estudiantes.
+
     """
 
     # Parametros para el envio de datos
-    username = "example@gmail.com"
+    username = "correo@gmail.com"
     password = "password"
-    destinatarios = ["example1@gmail.com", "example2@gmail.com", "example3@gmail.com"]
+    lista_destinatarios = ["correo1@gmail.com"] #luis.andrade03@epn.edu.ec
     # Leer en la base de datos todos los correos, para realizar esta tarea
-    subject = "intento de envio de link de telegram"
+    subject = "Intento de envio de link de telegram"
 
-    for destinatario in destinatarios:
-        created_link = create_one_user_invite_link(update, context, -1001597618720)
-        #print(created_link)
+    for destinatario in lista_destinatarios:
+
+        created_link = create_one_user_invite_link(update, context, "-1001597618720")
+        # print(created_link)
         correo1 = correo_bot(username, password, destinatario, subject)
         html = f"""
         <p> Hola {destinatario}, como estas Por favor accede a este link:
         <a href={created_link}>{created_link}</a>
         </p>
         """
+        print(f"El destinatario es: "+destinatario)
+
         correo1.mensaje.set_html(html)
         correo1.enviar_correo()
 
@@ -153,11 +179,11 @@ updater = Updater(token_str)
 
 # Get the dispatcher to register handlers
 dp = updater.dispatcher
-
-dp.add_handler(CommandHandler('hello', hello))
+dp.add_handler(CommandHandler('start', start))
 dp.add_handler(CommandHandler('link', handler_generate_link_command))
 dp.add_handler(CommandHandler('send_links', send_links_to_emails))
-dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, handler_new_member_joined))
+#dp.add_handler(MessageHandler(Filters.update,inline_buttons_test))
+dp.add_handler(CallbackQueryHandler(callback_query_handler))
 
 
 # log all errors
