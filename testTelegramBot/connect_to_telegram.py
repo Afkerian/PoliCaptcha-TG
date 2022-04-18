@@ -145,6 +145,19 @@ def create_main_invite_link(update: Update, context: CallbackContext) -> str:
     """
     return update.message.chat.export_invite_link()
 
+def generate_email_template(join_faculty_link: str, join_fepon_link: str):
+    """
+    Este método lee la plantilla de correo y reemplaza los links donde pertenecen.
+    :param join_faculty_link: Enlace de union a grupo de la facultad correspondiente
+    :param join_fepon_link: Enlace de union a Grupo de fepon
+    :return: String con la plantilla de correo preparada para el envío
+    """
+    with open("join_email.html") as html:
+        body = html.read().replace("[GROUP_JOIN_FACULTY_LINK]", join_faculty_link)
+        body = body.replace("[GROUP_JOIN_FEPON_LINK]", join_fepon_link)
+        return body
+
+
 
 def error(update: Update, context: CallbackContext):
     """Log Errors caused by Updates."""
