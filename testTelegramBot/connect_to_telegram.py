@@ -108,9 +108,9 @@ def send_links_to_emails(update: Update, context: CallbackContext) -> None:
     """
 
     # Parametros para el envio de datos
-    username = "example@gmail.com"
-    password = "password"
-    destinatarios = ["example1@gmail.com", "example2@gmail.com", "example3@gmail.com"]
+    username = "example@epn.edu.ec"
+    password = ""
+    destinatarios = ["example1@epn.edu.ec", "example2@epn.edu.ec"]
     # Leer en la base de datos todos los correos, para realizar esta tarea
     subject = "intento de envio de link de telegram"
 
@@ -121,19 +121,6 @@ def send_links_to_emails(update: Update, context: CallbackContext) -> None:
         html = generate_email_template(created_link,created_link)
         correo1.mensaje.set_html(html)
         correo1.enviar_correo()
-
-
-def generate_email_template(join_faculty_link: str, join_fepon_link: str):
-    """
-    Este método lee la plantilla de correo y reemplaza los links donde pertenecen.
-    :param join_faculty_link: Enlace de union a grupo de la facultad correspondiente
-    :param join_fepon_link: Enlace de union a Grupo de fepon
-    :return: String con la plantilla de correo preparada para el envío
-    """
-    with open("join_email.html") as html:
-        body = html.read().replace("[GROUP_JOIN_FACULTY_LINK]", join_faculty_link)
-        body = body.replace("[GROUP_JOIN_FEPON_LINK]", join_fepon_link)
-        return body
 
 
 def create_main_invite_link(update: Update, context: CallbackContext) -> str:
@@ -152,7 +139,7 @@ def generate_email_template(join_faculty_link: str, join_fepon_link: str):
     :param join_fepon_link: Enlace de union a Grupo de fepon
     :return: String con la plantilla de correo preparada para el envío
     """
-    with open("join_email.html") as html:
+    with open("join_email.html",'r',encoding='utf8') as html:
         body = html.read().replace("[GROUP_JOIN_FACULTY_LINK]", join_faculty_link)
         body = body.replace("[GROUP_JOIN_FEPON_LINK]", join_fepon_link)
         return body
