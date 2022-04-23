@@ -23,8 +23,8 @@ class correo_bot():
         mailserver.sendmail(self.username,self.destinatario,self.mensaje.mensaje.as_string())
         print(f"Mensaje enviado a {self.destinatario}")
         mailserver.quit()
-
         """
+
         #Código paraenviar correos en gmail
         context= ssl.create_default_context()
         with smtplib.SMTP_SSL("smtp.gmail.com",465,context=context) as server:
@@ -32,5 +32,5 @@ class correo_bot():
             print("Inicio sesión")
             server.sendmail(self.username,self.destinatario,self.mensaje.mensaje.as_string())
             print(f"Mensaje enviado a {self.destinatario}")
-"""
+        """
 

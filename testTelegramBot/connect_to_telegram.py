@@ -10,7 +10,9 @@ import yaml
 import logging
 # Para enviar los correos
 from enviocorreos import correo_bot
-#Enable logging
+# Enable logging
+from testTelegramBot.EstudiantesNuevos import NewStudent
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
 )
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 GROUP, EMAIL, CODE = range(3)
 
 
-def handler_generate_link_command(update: Update, context: CallbackContext) -> None:
+def get_group_id() -> str:
     """
     Handler para el comando /link, que generará un link para un grupo y se lo enviará al usuario,
     por el momento requiere de más estudio y personalización, respecto a los grupos que se genera y la validación.
@@ -31,17 +33,7 @@ def handler_generate_link_command(update: Update, context: CallbackContext) -> N
         service = yaml.safe_load(token_f)
         group_id = service["group_id"]
 
-    with open("users.yml") as users:
-        enabled_users = yaml.safe_load(users)["enabled_users"]
-
-    created_link = create_one_user_invite_link(update, context, group_id)
-    update.message.reply_text(f'Hello your link is {created_link}')
-    enabled_users.append(update.effective_user.id)
-
-    dict_file = {'enabled_users': enabled_users}
-    with open("users.yml", 'w') as users:
-        yaml.dump(dict_file, users)
-
+    return group_id
 
 def create_one_user_invite_link(update: Update, context: CallbackContext, group_id: str) -> str:
     """
@@ -55,7 +47,7 @@ def create_one_user_invite_link(update: Update, context: CallbackContext, group_
     new_personal_link = update.message.bot.create_chat_invite_link(group_id, member_limit=1)
     return new_personal_link.invite_link
 
-
+""""""
 def handler_new_member_joined(update: Update, context: CallbackContext) -> None:
     """
         Handler que se encarga de escuchar cuando un usuario se une al chat y comprueba si este esta permitido
@@ -89,7 +81,7 @@ def check_new_chat_member_joined(enabled_users: [int], joined_member_id: int) ->
     return flag
 
 
-def send_links_to_emails(update: Update, context: CallbackContext) -> None:
+def send_links_to_emails(update: Update, context: CallbackContext, destinatario:str) -> None:
     """
     :param update: Update de la librería.
     :param context: Contexto de la librería.
@@ -102,17 +94,14 @@ def send_links_to_emails(update: Update, context: CallbackContext) -> None:
     # Parametros para el envio de datos
     username = "example@epn.edu.ec"
     password = ""
-    destinatarios = ["example1@epn.edu.ec", "example2@epn.edu.ec"]
     # Leer en la base de datos todos los correos, para realizar esta tarea
-    subject = "intento de envio de link de telegram"
-
-    for destinatario in destinatarios:
-        created_link = create_one_user_invite_link(update, context, -1001597618720)
-        # print(created_link)
-        correo1 = correo_bot(username, password, destinatario, subject)
-        html = generate_email_template(created_link,created_link)
-        correo1.mensaje.set_html(html)
-        correo1.enviar_correo()
+    subject = "Enlace de invitacion al grupo de Telegram"
+    created_link = create_one_user_invite_link(update, context, get_group_id())
+    # print(created_link)
+    correo1 = correo_bot(username, password, destinatario, subject)
+    html = generate_email_template(created_link, created_link)
+    correo1.mensaje.set_html(html)
+    correo1.enviar_correo()
 
 
 def create_main_invite_link(update: Update, context: CallbackContext) -> str:
@@ -132,16 +121,18 @@ def generate_email_template(join_faculty_link: str, join_fepon_link: str):
     :param join_fepon_link: Enlace de union a Grupo de fepon
     :return: String con la plantilla de correo preparada para el envío
     """
-    with open("join_email.html",'r',encoding='utf8') as html:
+    with open("join_email.html", 'r', encoding='utf8') as html:
         body = html.read().replace("[GROUP_JOIN_FACULTY_LINK]", join_faculty_link)
         body = body.replace("[GROUP_JOIN_FEPON_LINK]", join_fepon_link)
         return body
 
 
+logging_students = []
+new_student = NewStudent()
+
 def start(update: Update, context: CallbackContext) -> int:
     """Starts the conversation and asks the user about their gender."""
     reply_keyboard = [['AEIS', 'FEPON']]
-
     update.message.reply_text(
         'Bienvenido a Policaptcha\n'
         'A través de este bot podrás unirte a los grupos de telegram de la AEIS o de la FEPON 🤓',
@@ -156,7 +147,12 @@ def start(update: Update, context: CallbackContext) -> int:
 def group(update: Update, context: CallbackContext) -> int:
     """Stores the selected gender and asks for a photo."""
     user = update.message.from_user
-    logger.info("Group of %s: %s", user.first_name, update.message.text)
+    grupo = update.message.text
+
+    new_student.name = user.first_name
+    new_student.group = grupo
+    new_student.id = user.id
+    logger.info("Group of %s: %s", user.first_name, grupo)
     update.message.reply_text(
         'Listo\n'
         'Ingresa tu correo institucional para validar que seas parte de la EPN',
@@ -169,9 +165,9 @@ def group(update: Update, context: CallbackContext) -> int:
 def email(update: Update, context: CallbackContext) -> int:
     """Stores the photo and asks for a location."""
     user = update.message.from_user
-    #photo_file = update.message.photo[-1].get_file()
-    #photo_file.download('user_photo.jpg')
-    logger.info("Email of %s: %s", user.first_name, update.message.text)
+    email1 = update.message.text
+    new_student.email = email1
+    logger.info("Email of %s: %s", user.first_name, email1)
     update.message.reply_text(
         'Perfecto, por último ingresa tu código único'
     )
@@ -182,16 +178,34 @@ def email(update: Update, context: CallbackContext) -> int:
 def code(update: Update, context: CallbackContext) -> int:
     """Stores the location and asks for some info about the user."""
     user = update.message.from_user
-    #user_location = update.message.location
-    codigo_unico=update.message.text
+    # user_location = update.message.location
+    codigo_unico = update.message.text
+    new_student.code = codigo_unico
+
     logger.info(
-        "Code of %s: %s", user.first_name,codigo_unico
+        "Code of %s: %s", user.first_name, codigo_unico
     )
     update.message.reply_text(
         'Listo, tu número único se ha validado\n'
         'Gracias por tu colaboración'
     )
+    print(f"Nombre:" + new_student.name +"ID: " + str(new_student.id) + " Grupo:" + new_student.group + " Email:" + new_student.email + " Codigo: " + new_student.code)
+    modify_users(new_student)
+    send_links_to_emails(update,context,new_student.email)
+
     return ConversationHandler.END
+
+
+
+def modify_users(student: NewStudent):
+    with open("users.yml") as users:
+        enabled_users = yaml.unsafe_load(users)["enabled_users"]
+
+        enabled_users.append(student)
+
+    dict_file = {'enabled_users': enabled_users}
+    with open("users.yml", 'w') as users:
+        yaml.dump(dict_file, users)
 
 
 def cancel(update: Update, context: CallbackContext) -> int:
@@ -220,21 +234,21 @@ updater = Updater(token_str)
 dp = updater.dispatcher
 
 conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            GROUP: [MessageHandler(Filters.regex('^(AEIS|FEPON)$')& ~Filters.command & Filters.text, group) ],
-            EMAIL: [MessageHandler(Filters.regex('^[a-zA-Z0-9.]+@epn.edu.ec') & ~Filters.command & Filters.text,email)],
-            CODE: [MessageHandler(Filters.regex('^[0-9.]+') & ~Filters.command & Filters.text, code)],
-        },
-        fallbacks=[CommandHandler('cancel', cancel)],
-    )
+    entry_points=[CommandHandler('start', start)],
+    states={
+        GROUP: [MessageHandler(Filters.regex('^(AEIS|FEPON)$') & ~Filters.command & Filters.text, group)],
+        EMAIL: [MessageHandler(Filters.regex('^[a-zA-Z0-9.]+@epn.edu.ec') & ~Filters.command & Filters.text, email)],
+        CODE: [MessageHandler(Filters.regex('^[0-9.]+') & ~Filters.command & Filters.text, code)],
+    },
+    fallbacks=[CommandHandler('cancel', cancel)],
+)
 
 dp.add_handler(conv_handler)
-dp.add_handler(CommandHandler('link', handler_generate_link_command))
+#dp.add_handler(CommandHandler('link', handler_generate_link_command))
 dp.add_handler(CommandHandler('send_links', send_links_to_emails))
 dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, handler_new_member_joined))
 
-#dp.add_handler(CallbackQueryHandler())
+# dp.add_handler(CallbackQueryHandler())
 # log all errors
 dp.add_error_handler(error)
 
