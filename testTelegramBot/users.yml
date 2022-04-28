@@ -1,2 +1,20 @@
 enabled_users:
-- 
+- null
+- !!python/object:testTelegramBot.EstudiantesNuevos.NewStudent
+  code: '20381923810'
+  email: paul.roman@epn.edu.ec
+  group: AEIS
+  id: 1073976094
+  name: Paul
+- !!python/object:testTelegramBot.EstudiantesNuevos.NewStudent
+  code: '202120882'
+  email: pedro.sanchez@epn.edu.ec
+  group: AEIS
+  id: 1073976094
+  name: Paul
+- !!python/object:testTelegramBot.EstudiantesNuevos.NewStudent
+  code: '202077023'
+  email: brook.barbrick@epn.edu.ec
+  group: AEIS
+  id: 1073976094
+  name: Paul

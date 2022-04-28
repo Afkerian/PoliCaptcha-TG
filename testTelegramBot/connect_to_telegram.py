@@ -12,6 +12,7 @@ import logging
 from enviocorreos import correo_bot
 # Enable logging
 from testTelegramBot.EstudiantesNuevos import NewStudent
+import csv_loader
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -131,7 +132,12 @@ logging_students = []
 new_student = NewStudent()
 
 def start(update: Update, context: CallbackContext) -> int:
-    """Starts the conversation and asks the user about their gender."""
+    """
+    Empieza la conversacion y pregunta al ususario sobre el grupo al que quiere unirse
+    :param update:
+    :param context:
+    :return:
+    """
     reply_keyboard = [['AEIS', 'FEPON']]
     update.message.reply_text(
         'Bienvenido a Policaptcha\n'
@@ -145,7 +151,12 @@ def start(update: Update, context: CallbackContext) -> int:
 
 
 def group(update: Update, context: CallbackContext) -> int:
-    """Stores the selected gender and asks for a photo."""
+    """
+    Guarda el grupo al que quiere unirse y pergunta por el correo institucional
+    :param update:
+    :param context:
+    :return:
+    """
     user = update.message.from_user
     grupo = update.message.text
 
@@ -163,7 +174,12 @@ def group(update: Update, context: CallbackContext) -> int:
 
 
 def email(update: Update, context: CallbackContext) -> int:
-    """Stores the photo and asks for a location."""
+    """
+    Guarda al email y pregunta al usuario sobre su codigo unico
+    :param update:
+    :param context:
+    :return:
+    """
     user = update.message.from_user
     email1 = update.message.text
     new_student.email = email1
@@ -176,7 +192,14 @@ def email(update: Update, context: CallbackContext) -> int:
 
 
 def code(update: Update, context: CallbackContext) -> int:
-    """Stores the location and asks for some info about the user."""
+    """
+    Guarda el código unico y guarda al estudiante en la tabla "telegram" de la base de datos
+    Falta realizar la validacion de que el usuario se encuentre en la base de datos de estudiantes para enviarle
+    el correo con los links.
+    :param update:
+    :param context:
+    :return:
+    """
     user = update.message.from_user
     # user_location = update.message.location
     codigo_unico = update.message.text
@@ -189,12 +212,14 @@ def code(update: Update, context: CallbackContext) -> int:
         'Listo, tu número único se ha validado\n'
         'Gracias por tu colaboración'
     )
-    print(f"Nombre:" + new_student.name +"ID: " + str(new_student.id) + " Grupo:" + new_student.group + " Email:" + new_student.email + " Codigo: " + new_student.code)
-    modify_users(new_student)
-    send_links_to_emails(update,context,new_student.email)
+    #modify_users(new_student)
+    #send_links_to_emails(update,context,new_student.email)
+    if new_student.check_student():
+        new_student.upload_student()
+    else: update.message.reply_text("No te encuentras en la base de datos contáctate con la AEIS o FEPON en caso de "
+                                    "un error")
 
     return ConversationHandler.END
-
 
 
 def modify_users(student: NewStudent):
@@ -218,6 +243,15 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
     return ConversationHandler.END
 
+def update_database_students(update: Update, context: CallbackContext):
+    """
+    A partir del comando updta_csv carga el archivo csv y actualiza la base de datos de estudiantes.
+    :param update:
+    :param context:
+    :return:
+    """
+    csv_loader.total_update_estudiantes()
+    update.message.reply_text("¡Tabla estudiantes actualizada correctamente!")
 
 def error(update: Update, context: CallbackContext):
     """Log Errors caused by Updates."""
@@ -245,7 +279,9 @@ conv_handler = ConversationHandler(
 
 dp.add_handler(conv_handler)
 #dp.add_handler(CommandHandler('link', handler_generate_link_command))
+
 dp.add_handler(CommandHandler('send_links', send_links_to_emails))
+dp.add_handler(CommandHandler('update_csv', update_database_students))
 dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, handler_new_member_joined))
 
 # dp.add_handler(CallbackQueryHandler())
